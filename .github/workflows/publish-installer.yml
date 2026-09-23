@@ -52,3 +52,18 @@ jobs:
         run: |
           version=$(python -c "import json; print(json.load(open('release-input.json'))['version'])")
           gh release create "v$version" release-assets/* --target "$GITHUB_SHA" --title "대구 테니스 $version" --notes-file release-notes.md --latest
+      - name: Verify anonymous public downloads
+        shell: python
+        run: |
+          import hashlib, json, urllib.request
+          base = 'https://github.com/BAE-lab1/daegu-tennis-releases/releases/latest/download/update.json'
+          with urllib.request.urlopen(base, timeout=60) as response:
+              manifest = json.load(response)
+          expected = json.load(open('release-assets/update.json'))
+          assert manifest == expected
+          digest = hashlib.sha256(); total = 0
+          with urllib.request.urlopen(manifest['url'], timeout=60) as response:
+              while chunk := response.read(1024 * 1024):
+                  digest.update(chunk); total += len(chunk)
+          assert total == manifest['size'] and digest.hexdigest() == manifest['sha256']
+          print('Anonymous installer and update feed checks passed.')
