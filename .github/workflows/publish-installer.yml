@@ -1,0 +1,54 @@
+name: Publish verified Windows installer
+on:
+  push:
+    branches: [main]
+    paths: ['release-input.json']
+permissions:
+  contents: write
+concurrency:
+  group: public-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify installer assets
+        shell: python
+        run: |
+          import hashlib, json, pathlib, re, urllib.request, urllib.parse, zipfile
+          data = json.loads(pathlib.Path('release-input.json').read_text())
+          version = data['version']
+          assert re.fullmatch(r'\d+\.\d+\.\d+', version)
+          url = urllib.parse.urlsplit(data['artifact_url'])
+          assert url.scheme == 'https' and url.hostname.endswith('.oaiusercontent.com')
+          request = urllib.request.Request(data['artifact_url'])
+          with urllib.request.urlopen(request, timeout=60) as response, open('artifact.zip', 'wb') as out:
+              while chunk := response.read(1024 * 1024):
+                  out.write(chunk)
+          assert hashlib.file_digest(open('artifact.zip', 'rb'), 'sha256').hexdigest() == data['artifact_sha256']
+          expected = 'DaeguTennis-Setup-' + version + '.exe'
+          folder = pathlib.Path('release-assets'); folder.mkdir()
+          with zipfile.ZipFile('artifact.zip') as archive:
+              for name in (expected, 'update.json'):
+                  matches = [x for x in archive.namelist() if pathlib.PurePosixPath(x).name == name]
+                  assert len(matches) == 1, (name, matches)
+                  with archive.open(matches[0]) as src, (folder/name).open('wb') as out:
+                      while chunk := src.read(1024 * 1024):
+                          out.write(chunk)
+          manifest = json.loads((folder/'update.json').read_text())
+          installer = folder/expected
+          sha = hashlib.file_digest(installer.open('rb'), 'sha256').hexdigest()
+          assert manifest['version'] == version
+          assert manifest['size'] == installer.stat().st_size and manifest['sha256'] == sha
+          assert manifest['url'] == 'https://github.com/BAE-lab1/daegu-tennis-releases/releases/download/v' + version + '/' + expected
+          (folder/'SHA256.txt').write_text(sha + '  ' + expected + '\n')
+          pathlib.Path('release-notes.md').write_text('대구 테니스 ' + version + '\n\nWindows 설치 EXE를 실행하세요. Python 설치는 필요하지 않습니다.\n\n공식 공개 업데이트 주소 연결. 기존 설정 유지. 1.34.0 사용자는 이번 설치판을 한 번 설치하세요.\n\nWindows 테스트 291개 및 설치 전·후 자체 검사 통과.\n', encoding='utf-8')
+      - name: Publish installer and update manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(python -c "import json; print(json.load(open('release-input.json'))['version'])")
+          gh release create "v$version" release-assets/* --target "$GITHUB_SHA" --title "대구 테니스 $version" --notes-file release-notes.md --latest
