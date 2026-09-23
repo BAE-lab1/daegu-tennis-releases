@@ -31,6 +31,8 @@ jobs:
           expected = 'DaeguTennis-Setup-' + version + '.exe'
           folder = pathlib.Path('release-assets'); folder.mkdir()
           with zipfile.ZipFile('artifact.zip') as archive:
+              assert len(archive.namelist()) == 2
+              assert {pathlib.PurePosixPath(x).name for x in archive.namelist()} == {expected, 'update.json'}
               for name in (expected, 'update.json'):
                   matches = [x for x in archive.namelist() if pathlib.PurePosixPath(x).name == name]
                   assert len(matches) == 1, (name, matches)
