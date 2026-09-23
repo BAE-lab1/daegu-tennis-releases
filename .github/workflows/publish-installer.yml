@@ -22,7 +22,7 @@ jobs:
           version = data['version']
           assert re.fullmatch(r'\d+\.\d+\.\d+', version)
           url = urllib.parse.urlsplit(data['artifact_url'])
-          assert url.scheme == 'https' and url.hostname.endswith('.oaiusercontent.com')
+          assert url.scheme == 'https' and url.hostname == 'productionresultssa3.blob.core.windows.net'
           request = urllib.request.Request(data['artifact_url'])
           with urllib.request.urlopen(request, timeout=60) as response, open('artifact.zip', 'wb') as out:
               while chunk := response.read(1024 * 1024):
