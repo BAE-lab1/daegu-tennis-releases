@@ -1,0 +1,29 @@
+name: Verify public installer downloads
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify public manifest and full installer without credentials
+        shell: python
+        run: |
+          import os, json, re, hashlib, urllib.request
+          event = json.load(open(os.environ['GITHUB_EVENT_PATH']))
+          tag = event['release']['tag_name']
+          assert re.fullmatch(r'v\d+\.\d+\.\d+', tag)
+          base = 'https://github.com/BAE-lab1/daegu-tennis-releases/releases/download/' + tag + '/'
+          with urllib.request.urlopen(base + 'update.json', timeout=60) as response:
+              manifest = json.load(response)
+          assert manifest['version'] == tag[1:]
+          assert manifest['url'] == base + 'DaeguTennis-Setup-' + tag[1:] + '.exe'
+          digest = hashlib.sha256(); size = 0
+          with urllib.request.urlopen(manifest['url'], timeout=60) as response:
+              while chunk := response.read(1024*1024):
+                  size += len(chunk); digest.update(chunk)
+          assert size == manifest['size'] and digest.hexdigest() == manifest['sha256']
+          print('Anonymous manifest and installer verification passed:', tag)
