@@ -22,7 +22,7 @@ jobs:
           version = data['version']
           assert re.fullmatch(r'\d+\.\d+\.\d+', version)
           url = urllib.parse.urlsplit(data['artifact_url'])
-          assert url.scheme == 'https' and url.hostname == 'productionresultssa3.blob.core.windows.net'
+          assert url.scheme == 'https' and url.hostname == 'productionresultssa12.blob.core.windows.net'
           request = urllib.request.Request(data['artifact_url'])
           with urllib.request.urlopen(request, timeout=60) as response, open('artifact.zip', 'wb') as out:
               while chunk := response.read(1024 * 1024):
@@ -46,7 +46,7 @@ jobs:
           assert manifest['size'] == installer.stat().st_size and manifest['sha256'] == sha
           assert manifest['url'] == 'https://github.com/BAE-lab1/daegu-tennis-releases/releases/download/v' + version + '/' + expected
           (folder/'SHA256.txt').write_text(sha + '  ' + expected + '\n')
-          pathlib.Path('release-notes.md').write_text('대구 테니스 ' + version + '\n\nWindows 설치 EXE를 실행하세요. Python 설치는 필요하지 않습니다.\n\n공식 공개 업데이트 주소 연결. 기존 설정 유지. 1.34.0 사용자는 이번 설치판을 한 번 설치하세요.\n\nWindows 테스트 291개 및 설치 전·후 자체 검사 통과.\n', encoding='utf-8')
+          pathlib.Path('release-notes.md').write_text('대구 테니스 ' + version + '\n\nWindows 설치 EXE를 실행하세요. Python 설치는 필요하지 않습니다.\n\n하루 전체 시설 조회에 자동 조회(기본 60초, 30~3600초)와 변경 칸 테두리를 추가했습니다. 초록=새 빈자리, 주황=빈자리 종료, 보라=기타 변경. 칸 클릭 시 이전·현재 상태와 감지 시각을 표시합니다.\n\n조회 실패·누락은 마지막 정상 상태를 유지하고 빨간 선으로 표시합니다. 예약·대기 중에는 일시정지하며, 중지 또는 창 닫기로 반복 조회를 종료합니다. 기존 설정은 유지됩니다.\n\nWindows 테스트 302개 및 설치 전·후 자체 검사 통과.\n', encoding='utf-8')
       - name: Publish installer and update manifest
         env:
           GH_TOKEN: ${{ github.token }}
